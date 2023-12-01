@@ -19,7 +19,7 @@ class ChemicalShiftsPredictor(nn.Module):
             nn.ReLU(),
             nn.Linear(512, 256),
             nn.ReLU(),
-            nn.Linear(256, 7)  # Output size for chemical shifts
+            nn.Linear(256, 1)  # Output size for chemical shifts
         )
 
     def forward(self, x):

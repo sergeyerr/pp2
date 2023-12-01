@@ -6,12 +6,12 @@ import numpy as np
 
 
 class ProteinDataset(Dataset):
-    def __init__(self, chemical_shifts_df, prott5_file, prott5_res_file, prostt5_file):
+    def __init__(self, target_columns, chemical_shifts_df, prott5_file, prott5_res_file, prostt5_file):
         self.chemical_shifts_df = chemical_shifts_df
         self.prott5_embs = h5py.File(prott5_file, "r")
         self.prott5_res_embs = h5py.File(prott5_res_file, "r")
         self.prostt5_embs = h5py.File(prostt5_file, "r")
-
+        self.target_columns = target_columns
         self.avg_prostt5_embs = {key: np.mean(np.array(self.prostt5_embs[key]), axis=0) for key in self.prostt5_embs.keys()}
 
     def __len__(self):
@@ -31,10 +31,10 @@ class ProteinDataset(Dataset):
         protein_prostt5_emb = self.avg_prostt5_embs[protein_id]
 
         # Get chemical shifts
-        chemical_shifts = row[['C', 'CA', 'CB', 'HA', 'H', 'N', 'HB']].values.astype(np.float32)
+        chemical_shifts = row[self.target_columns].values.astype(np.float32)
 
         return (torch.tensor(amino_acid_prott5_emb, dtype=torch.float32),
                 torch.tensor(amino_acid_prostt5_emb, dtype=torch.float32),
-                torch.tensor(protein_prott5_emb, dtype=torch.float32),
+                torch.tensor(protein_prott5_emb, dtype=torch.float32).squeeze(),
                 torch.tensor(protein_prostt5_emb, dtype=torch.float32),
                 torch.tensor(chemical_shifts, dtype=torch.float32))
