@@ -52,7 +52,7 @@ def train_model(train_dataset, val_dataset, learning_rate, weight_decay, patienc
 
         for inputs in tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs}", unit="batch"):
             # Determine which inputs to use based on the dataset options
-            amino_acid_prott5_emb, amino_acid_prostt5_emb, protein_prott5_emb, protein_prostt5_emb, targets = inputs
+            amino_acid_prott5_emb, amino_acid_prostt5_emb, protein_prott5_emb, protein_prostt5_emb_stack, targets = inputs
 
             embeddings = [amino_acid_prott5_emb]
             if use_prostt5:
@@ -62,9 +62,14 @@ def train_model(train_dataset, val_dataset, learning_rate, weight_decay, patienc
                 # if use_prostt5:
                 #     embeddings.append(protein_prostt5_emb)
             concatenated_embeddings = torch.cat(embeddings, dim=1).to(device)
+            sequence_lengths = protein_prostt5_emb_stack.abs().sum(dim=-1).nonzero()[:, 1].max(dim=-1, keepdim=True)[0] + 1
+
+            # Create mask based on actual sequence lengths
+            max_seq_len = protein_prostt5_emb_stack.size(2)
+            mask = torch.arange(max_seq_len, device=device)[None, :] < sequence_lengths.to(device)
 
             optimizer.zero_grad()
-            outputs = model(concatenated_embeddings, protein_prostt5_emb.to(device))
+            outputs = model(concatenated_embeddings, protein_prostt5_emb_stack.to(device), mask.to(device))
             loss = criterion(outputs, targets.to(device))
             loss.backward()
             optimizer.step()
@@ -91,9 +96,14 @@ def train_model(train_dataset, val_dataset, learning_rate, weight_decay, patienc
                         #embeddings.append(protein_prostt5_emb)
 
                 concatenated_embeddings = torch.cat(embeddings, dim=1)
+                sequence_lengths = protein_prostt5_emb_stack.abs().sum(dim=-1).nonzero()[:, 1].max(dim=-1, keepdim=True)[0] + 1
+
+                # Create mask based on actual sequence lengths
+                max_seq_len = protein_prostt5_emb_stack.size(2)
+                mask = torch.arange(max_seq_len, device=device)[None, :] < sequence_lengths.to(device)
 
                 optimizer.zero_grad()
-                outputs = model(concatenated_embeddings, protein_prostt5_emb_stack)
+                outputs = model(concatenated_embeddings, protein_prostt5_emb_stack.to(device), mask.to(device))
                 val_loss += criterion(outputs, targets).item()
 
         avg_val_loss = val_loss / len(val_loader)
@@ -128,7 +138,7 @@ def test_model(model, test_dataset, use_prostt5, use_protein_mean, use_esm2, bat
 
     with torch.no_grad():
         for inputs in test_loader:
-            amino_acid_prott5_emb, amino_acid_prostt5_emb, protein_prott5_emb, protein_prostt5_emb, targets = [x.to(device) for x in inputs]
+            amino_acid_prott5_emb, amino_acid_prostt5_emb, protein_prott5_emb, protein_prostt5_emb_stack, targets = [x.to(device) for x in inputs]
 
             embeddings = [amino_acid_prott5_emb]
             if use_prostt5:
@@ -139,8 +149,13 @@ def test_model(model, test_dataset, use_prostt5, use_protein_mean, use_esm2, bat
                 #     embeddings.append(protein_prostt5_emb)
 
             concatenated_embeddings = torch.cat(embeddings, dim=1)
+            sequence_lengths = protein_prostt5_emb_stack.abs().sum(dim=-1).nonzero()[:, 1].max(dim=-1, keepdim=True)[0] + 1
 
-            outputs = model(concatenated_embeddings, protein_prostt5_emb)
+            # Create mask based on actual sequence lengths
+            max_seq_len = protein_prostt5_emb_stack.size(2)
+            mask = torch.arange(max_seq_len, device=device)[None, :] < sequence_lengths.to(device)
+
+            outputs = model(concatenated_embeddings, protein_prostt5_emb_stack.to(device), mask.to(device))
             total_loss += criterion(outputs, targets).item()
 
     avg_test_loss = total_loss / len(test_loader)

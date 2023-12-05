@@ -24,8 +24,8 @@ class ChemicalShiftsPredictor(nn.Module):
             nn.Linear(256, 1)  # Output size for chemical shifts
         )
 
-    def forward(self, x, stack):
-        attended = self.light_attention(stack)
+    def forward(self, x, stack, mask):
+        attended = self.light_attention(stack, mask)
         o = torch.cat([attended, x], dim=1)
         return self.fc_layers(o)
     
@@ -44,7 +44,7 @@ class LightAttention(nn.Module):
         self.dropout = nn.Dropout(conv_dropout)
 
 
-    def forward(self, x: torch.Tensor, **kwargs) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, mask, **kwargs) -> torch.Tensor:
         """
         Args:
             x: [batch_size, embeddings_dim, sequence_length] embedding tensor that should be classified
@@ -59,7 +59,7 @@ class LightAttention(nn.Module):
 
         # mask out the padding to which we do not want to pay any attention (we have the padding because the sequences have different lenghts).
         # This padding is added by the dataloader when using the padded_permuted_collate function in utils/general.py
-        #attention = attention.masked_fill(mask[:, None, :] == False, -1e9)
+        attention = attention.masked_fill(mask[:, None, :] == False, -1e9)
 
         # code used for extracting embeddings for UMAP visualizations
         # extraction =  torch.sum(x * self.softmax(attention), dim=-1)

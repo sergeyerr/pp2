@@ -40,7 +40,7 @@ class ProteinDataset(Dataset):
         return (torch.tensor(amino_acid_prott5_emb, dtype=torch.float32),
                 torch.tensor(amino_acid_prostt5_emb, dtype=torch.float32),
                 #torch.tensor(amino_acid_esm2_emb, dtype=torch.float32),
-                torch.tensor(protein_prott5_emb, dtype=torch.float32).squeeze(),
-                torch.tensor(protein_prostt5_emb_stack, dtype=torch.float32),
+                torch.tensor(np.array(protein_prott5_emb), dtype=torch.float32).squeeze(),
+                torch.tensor(np.array(protein_prostt5_emb_stack), dtype=torch.float32),
                 #torch.tensor(protein_esm2_emb, dtype=torch.float32),
                 torch.tensor(chemical_shifts, dtype=torch.float32))
