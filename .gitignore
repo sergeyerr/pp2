@@ -1,3 +1,4 @@
 data/*
 .conda/*
 *.pyc
+pdb_files/*
