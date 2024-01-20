@@ -4,7 +4,11 @@ import torch.optim as optim
 from typing import List, Tuple
 
 from torch.utils.tensorboard import SummaryWriter
-from tqdm import tqdm
+# if executed from notebook, then tqdm.notebook, else tqdb
+if 'get_ipython' in globals():
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
 from .model import ChemicalShiftsPredictor, ChemicalShiftsPredictorAttention
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
@@ -165,14 +169,15 @@ def train_model(train_dataset, val_dataset, learning_rate, weight_decay, patienc
     return model
 
 
-def test_model(model, test_dataset, use_prostt5, use_protein_mean, use_attention, batch_size=32, scaler=None):
+def test_model(model, test_dataset, use_prostt5, use_protein_mean, use_attention, batch_size=32, scaler=None, reinit_model=True):
     if use_attention:
         test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=6, collate_fn=packed_padded_collate)
     else:
         test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=6)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = ChemicalShiftsPredictor(use_prostt5=use_prostt5, use_protein_mean=use_protein_mean, use_attention=use_attention).to(device)
-    model.load_state_dict(torch.load('best_model.pth'))
+    if reinit_model:
+        model = ChemicalShiftsPredictor(use_prostt5=use_prostt5, use_protein_mean=use_protein_mean, use_attention=use_attention).to(device)
+        model.load_state_dict(torch.load('best_model.pth'))
     model.eval()
 
     criterion = nn.MSELoss()
@@ -181,7 +186,7 @@ def test_model(model, test_dataset, use_prostt5, use_protein_mean, use_attention
     t_mean, t_std = torch.tensor(scaler.mean_).to(device), torch.tensor(scaler.scale_).to(device)
 
     with torch.no_grad():
-        for inputs in test_loader:
+        for inputs in tqdm(test_loader):
             amino_acid_prott5_emb, amino_acid_prostt5_emb, amino_acid_esm2_emb, protein_prott5_emb, protein_prostt5_emb_stack, targets = [x.to(device) for x in inputs]
             embeddings = [amino_acid_prott5_emb]
             if use_prostt5:
